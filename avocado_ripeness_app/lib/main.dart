@@ -64,8 +64,9 @@ class CameraScreen extends HookWidget {
     final errorMessage = useState<String?>(null);
     final isModelReady = useState<bool>(false);
 
-    final resultNotifier =
-        useMemoized(() => ValueNotifier<InferenceResult?>(null));
+    final resultNotifier = useMemoized(
+      () => ValueNotifier<InferenceResult?>(null),
+    );
     useEffect(() => resultNotifier.dispose, [resultNotifier]);
 
     final modelServiceRef = useRef<ModelService?>(null);
@@ -77,18 +78,21 @@ class CameraScreen extends HookWidget {
       bool disposed = false;
       final service = ModelService();
 
-      service.initialize().then((_) {
-        if (!disposed) {
-          modelServiceRef.value = service;
-          isModelReady.value = true;
-          print('モデルの初期化が完了しました');
-        }
-      }).catchError((error) {
-        if (!disposed) {
-          errorMessage.value = 'モデルの読み込みに失敗: $error';
-          print('モデル初期化エラー: $error');
-        }
-      });
+      service
+          .initialize()
+          .then((_) {
+            if (!disposed) {
+              modelServiceRef.value = service;
+              isModelReady.value = true;
+              print('モデルの初期化が完了しました');
+            }
+          })
+          .catchError((error) {
+            if (!disposed) {
+              errorMessage.value = 'モデルの読み込みに失敗: $error';
+              print('モデル初期化エラー: $error');
+            }
+          });
 
       return () {
         disposed = true;
@@ -109,14 +113,17 @@ class CameraScreen extends HookWidget {
         enableAudio: false,
       );
 
-      controller.initialize().then((_) {
-        cameraController.value = controller;
-        isCameraInitialized.value = true;
-        print('カメラの初期化が完了しました');
-      }).catchError((error) {
-        errorMessage.value = 'カメラの初期化に失敗: $error';
-        print('カメラ初期化エラー: $error');
-      });
+      controller
+          .initialize()
+          .then((_) {
+            cameraController.value = controller;
+            isCameraInitialized.value = true;
+            print('カメラの初期化が完了しました');
+          })
+          .catchError((error) {
+            errorMessage.value = 'カメラの初期化に失敗: $error';
+            print('カメラ初期化エラー: $error');
+          });
 
       return () {
         controller.dispose();
@@ -158,8 +165,8 @@ class CameraScreen extends HookWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () => _showLicensePage(context),
-            tooltip: 'ライセンス',
+            onPressed: () => _showAboutDialog(context),
+            tooltip: 'アプリ情報',
           ),
         ],
       ),
@@ -198,11 +205,7 @@ class CameraScreen extends HookWidget {
 
           // ガイド楕円枠オーバーレイ
           if (isCameraInitialized.value)
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _GuideOvalPainter(),
-              ),
-            ),
+            Positioned.fill(child: CustomPaint(painter: _GuideOvalPainter())),
 
           // ガイドテキスト
           if (isCameraInitialized.value)
@@ -212,18 +215,17 @@ class CameraScreen extends HookWidget {
               right: 0,
               child: Center(
                 child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
                     'ここにアボカドを合わせてください',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   ),
                 ),
               ),
@@ -271,8 +273,10 @@ class CameraScreen extends HookWidget {
               right: 0,
               child: Center(
                 child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.6),
                     borderRadius: BorderRadius.circular(20.r),
@@ -289,13 +293,98 @@ class CameraScreen extends HookWidget {
     );
   }
 
+  /// Aboutダイアログを表示
+  static void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('アボカド成熟度チェッカー', style: TextStyle(fontSize: 18)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Version 1.0.0',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'アボカドの成熟度をAIで判定するアプリです。',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'データセット情報',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '本アプリは以下のデータセットを使用して学習しました：',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "'Hass' Avocado Ripening Photographic Dataset",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'DOI: 10.17632/3xd9n945v8.1',
+                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '作成者: Pedro Xavier, Pedro Rodrigues, Cristina L. M. Silva',
+                style: TextStyle(fontSize: 11),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '機関: Centro de Biotecnologia e Quimica Fina',
+                style: TextStyle(fontSize: 11),
+              ),
+              const SizedBox(height: 4),
+              const Text('ライセンス: CC BY 4.0', style: TextStyle(fontSize: 11)),
+              const SizedBox(height: 8),
+              const Text(
+                'https://data.mendeley.com/datasets/3xd9n945v8/1',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'データセットの引用元を参照してください。',
+                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showLicensePage(context);
+            },
+            child: const Text('ライセンス'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// ライセンスページを表示
   static void _showLicensePage(BuildContext context) {
     showLicensePage(
       context: context,
       applicationName: 'アボカド成熟度チェッカー',
       applicationVersion: '1.0.0',
-      applicationIcon: const Icon(Icons.restaurant, size: 48),
     );
   }
 
@@ -304,7 +393,8 @@ class CameraScreen extends HookWidget {
   /// FittedBox(cover)による表示変換を考慮し、画面上の楕円外接矩形を
   /// カメラ画像のピクセル座標に変換する。
   static CropRect _computeCropRect(CameraController controller) {
-    final screenSize = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
+    final screenSize =
+        WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
 
     final screenW = screenSize.width;
@@ -536,10 +626,7 @@ class _ResultOverlay extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             '信頼度: ${(result.confidence * 100).toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14.sp),
           ),
           SizedBox(height: 8.h),
           ClipRRect(
