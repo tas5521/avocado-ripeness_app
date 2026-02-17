@@ -151,6 +151,18 @@ class CameraScreen extends HookWidget {
     }, [isCameraInitialized.value, isModelReady.value]);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () => _showLicensePage(context),
+            tooltip: 'ライセンス',
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           // カメラプレビュー（アスペクト比を維持して画面全体をカバー）
@@ -274,6 +286,16 @@ class CameraScreen extends HookWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// ライセンスページを表示
+  static void _showLicensePage(BuildContext context) {
+    showLicensePage(
+      context: context,
+      applicationName: 'アボカド成熟度チェッカー',
+      applicationVersion: '1.0.0',
+      applicationIcon: const Icon(Icons.restaurant, size: 48),
     );
   }
 
