@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -45,6 +46,12 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/// ガイド楕円の定数（画面比率で定義）
+class _GuideOval {
+  static double widthRatio = 0.55;
+  static double heightRatio = 0.40;
+}
+
 class CameraScreen extends HookWidget {
   final List<CameraDescription> cameras;
 
@@ -57,7 +64,6 @@ class CameraScreen extends HookWidget {
     final errorMessage = useState<String?>(null);
     final isModelReady = useState<bool>(false);
 
-    // 推論結果はValueNotifierで管理（CameraScreenをリビルドしない）
     final resultNotifier =
         useMemoized(() => ValueNotifier<InferenceResult?>(null));
     useEffect(() => resultNotifier.dispose, [resultNotifier]);
@@ -90,7 +96,7 @@ class CameraScreen extends HookWidget {
       };
     }, []);
 
-    // カメラの初期化（startImageStreamは使わない）
+    // カメラの初期化
     useEffect(() {
       if (cameras.isEmpty) {
         errorMessage.value = 'カメラが見つかりません';
@@ -117,7 +123,7 @@ class CameraScreen extends HookWidget {
       };
     }, []);
 
-    // 推論タイマー: 短くstreamを開いて1フレーム取得 → 推論
+    // 推論タイマー
     useEffect(() {
       if (!isCameraInitialized.value ||
           !isModelReady.value ||
@@ -178,6 +184,39 @@ class CameraScreen extends HookWidget {
               ),
             ),
 
+          // ガイド楕円枠オーバーレイ
+          if (isCameraInitialized.value)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _GuideOvalPainter(),
+              ),
+            ),
+
+          // ガイドテキスト
+          if (isCameraInitialized.value)
+            Positioned(
+              bottom: 120.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20.r),
+                  ),
+                  child: Text(
+                    'ここにアボカドを合わせてください',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // エラーメッセージ
           if (errorMessage.value != null)
             Center(
@@ -196,7 +235,7 @@ class CameraScreen extends HookWidget {
               ),
             ),
 
-          // 推論結果オーバーレイ（ValueListenableBuilderで独立更新）
+          // 推論結果オーバーレイ
           Positioned(
             top: 60.h,
             left: 0,
@@ -238,6 +277,58 @@ class CameraScreen extends HookWidget {
     );
   }
 
+  /// カメラ画像座標でのCrop矩形を計算する
+  ///
+  /// FittedBox(cover)による表示変換を考慮し、画面上の楕円外接矩形を
+  /// カメラ画像のピクセル座標に変換する。
+  static CropRect _computeCropRect(CameraController controller) {
+    final screenSize = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+
+    final screenW = screenSize.width;
+    final screenH = screenSize.height;
+
+    // カメラのプレビューサイズ（横向き基準）
+    final camW = controller.value.previewSize!.height;
+    final camH = controller.value.previewSize!.width;
+
+    // FittedBox(cover)のスケール計算
+    final scaleX = screenW / camW;
+    final scaleY = screenH / camH;
+    final coverScale = math.max(scaleX, scaleY);
+
+    // カバー後の表示サイズ
+    final displayW = camW * coverScale;
+    final displayH = camH * coverScale;
+
+    // オフセット（クリップされる分）
+    final offsetX = (displayW - screenW) / 2.0;
+    final offsetY = (displayH - screenH) / 2.0;
+
+    // 画面上の楕円外接矩形
+    final ovalW = screenW * _GuideOval.widthRatio;
+    final ovalH = screenH * _GuideOval.heightRatio;
+    final ovalLeft = (screenW - ovalW) / 2.0;
+    final ovalTop = (screenH - ovalH) / 2.0;
+
+    // 画面座標 → カメラ画像座標への変換
+    final cropLeft = ((ovalLeft + offsetX) / coverScale).round();
+    final cropTop = ((ovalTop + offsetY) / coverScale).round();
+    final cropRight = (((ovalLeft + ovalW) + offsetX) / coverScale).round();
+    final cropBottom = (((ovalTop + ovalH) + offsetY) / coverScale).round();
+
+    // カメラ画像サイズでクランプ
+    final camImgW = camW.round();
+    final camImgH = camH.round();
+
+    return CropRect(
+      left: cropLeft.clamp(0, camImgW),
+      top: cropTop.clamp(0, camImgH),
+      right: cropRight.clamp(0, camImgW),
+      bottom: cropBottom.clamp(0, camImgH),
+    );
+  }
+
   /// 1フレームだけキャプチャして推論を実行
   static Future<void> _captureAndInfer(
     CameraController controller,
@@ -251,24 +342,21 @@ class CameraScreen extends HookWidget {
     isProcessing.value = true;
 
     try {
-      // 1. 画像ストリームを開始して1フレームだけキャプチャ
+      // Crop矩形を計算
+      final cropRect = _computeCropRect(controller);
+
+      // 画像ストリームを開始して1フレームだけキャプチャ
       final completer = Completer<_FrameData>();
 
       controller.startImageStream((CameraImage image) {
         if (!completer.isCompleted) {
-          // 即座にデータをコピー
           completer.complete(_copyFrameData(image));
         }
       });
 
-      // 最初のフレームを取得
       final frameData = await completer.future;
-
-      // 2. すぐにストリームを停止（カメラプレビューへの干渉を最小化）
       await controller.stopImageStream();
 
-      // 3. 前処理を別Isolateで実行
-      // 4. 推論実行（FFI、メインスレッドだが画像ストリームは停止済み）
       final result = await service.predictFromBuffer(
         isBgra: frameData.isBgra,
         bgraBytes: frameData.bgraBytes,
@@ -281,6 +369,7 @@ class CameraScreen extends HookWidget {
         yBytesPerRow: frameData.yBytesPerRow,
         uvBytesPerRow: frameData.uvBytesPerRow,
         uvPixelStride: frameData.uvPixelStride,
+        cropRect: cropRect,
       );
 
       if (result != null) {
@@ -293,7 +382,7 @@ class CameraScreen extends HookWidget {
     }
   }
 
-  /// CameraImageからデータをコピー（ストリームコールバック内で実行）
+  /// CameraImageからデータをコピー
   static _FrameData _copyFrameData(CameraImage image) {
     if (image.format.group == ImageFormatGroup.bgra8888) {
       return _FrameData(
@@ -346,6 +435,44 @@ class _FrameData {
     this.uvBytesPerRow = 0,
     this.uvPixelStride = 1,
   });
+}
+
+/// ガイド楕円を描画するCustomPainter
+/// 楕円の外側を半透明の暗いオーバーレイで覆い、楕円の枠線を描画する
+class _GuideOvalPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final ovalW = size.width * _GuideOval.widthRatio;
+    final ovalH = size.height * _GuideOval.heightRatio;
+
+    final ovalRect = Rect.fromCenter(
+      center: center,
+      width: ovalW,
+      height: ovalH,
+    );
+
+    // 楕円の外側を半透明で塗りつぶし
+    final overlayPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addOval(ovalRect)
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(
+      overlayPath,
+      Paint()..color = Colors.black.withOpacity(0.45),
+    );
+
+    // 楕円の枠線
+    final borderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawOval(ovalRect, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// 推論結果オーバーレイ
