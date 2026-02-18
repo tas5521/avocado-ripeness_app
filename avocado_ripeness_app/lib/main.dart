@@ -46,6 +46,31 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/// アプリのライフサイクルを監視し、バックグラウンド/フォアグラウンドを検知
+class _AppLifecycleObserver with WidgetsBindingObserver {
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+
+  _AppLifecycleObserver({required this.onPause, required this.onResume});
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        onPause();
+        break;
+      case AppLifecycleState.resumed:
+        onResume();
+        break;
+      case AppLifecycleState.detached:
+        onPause();
+        break;
+    }
+  }
+}
+
 /// ガイド楕円の定数（画面比率で定義）
 class _GuideOval {
   static double widthRatio = 0.55;
@@ -72,6 +97,17 @@ class CameraScreen extends HookWidget {
     final modelServiceRef = useRef<ModelService?>(null);
     final timerRef = useRef<Timer?>(null);
     final isProcessingRef = useRef<bool>(false);
+    final isInForeground = useState<bool>(true);
+
+    // アプリのライフサイクル監視（バックグラウンド時に推論を停止）
+    useEffect(() {
+      final observer = _AppLifecycleObserver(
+        onPause: () => isInForeground.value = false,
+        onResume: () => isInForeground.value = true,
+      );
+      WidgetsBinding.instance.addObserver(observer);
+      return () => WidgetsBinding.instance.removeObserver(observer);
+    }, []);
 
     // モデルサービスの初期化
     useEffect(() {
@@ -130,12 +166,15 @@ class CameraScreen extends HookWidget {
       };
     }, []);
 
-    // 推論タイマー
+    // 推論タイマー（フォアグラウンド時のみ動作）
     useEffect(() {
-      if (!isCameraInitialized.value ||
+      if (!isInForeground.value ||
+          !isCameraInitialized.value ||
           !isModelReady.value ||
           cameraController.value == null ||
           modelServiceRef.value == null) {
+        timerRef.value?.cancel();
+        timerRef.value = null;
         return null;
       }
 
@@ -155,7 +194,11 @@ class CameraScreen extends HookWidget {
         timerRef.value?.cancel();
         timerRef.value = null;
       };
-    }, [isCameraInitialized.value, isModelReady.value]);
+    }, [
+      isInForeground.value,
+      isCameraInitialized.value,
+      isModelReady.value,
+    ]);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -595,15 +638,20 @@ class _ResultOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parts = result.className.split('\n');
+    final japanese = parts.isNotEmpty ? parts[0] : result.className;
+    final english = parts.length > 1 ? parts[1].trim() : '';
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w),
-      padding: EdgeInsets.all(16.w),
+      margin: EdgeInsets.symmetric(horizontal: 32.w),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.7),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             '成熟度',
@@ -615,7 +663,7 @@ class _ResultOverlay extends StatelessWidget {
           ),
           SizedBox(height: 8.h),
           Text(
-            result.className,
+            japanese,
             style: TextStyle(
               color: Colors.white,
               fontSize: 24.sp,
@@ -623,31 +671,16 @@ class _ResultOverlay extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 8.h),
-          Text(
-            '信頼度: ${(result.confidence * 100).toStringAsFixed(1)}%',
-            style: TextStyle(color: Colors.white70, fontSize: 14.sp),
-          ),
-          SizedBox(height: 8.h),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4.r),
-            child: LinearProgressIndicator(
-              value: result.confidence,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _getConfidenceColor(result.confidence),
-              ),
-              minHeight: 8.h,
+          if (english.isNotEmpty) ...[
+            SizedBox(height: 4.h),
+            Text(
+              english,
+              style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+              textAlign: TextAlign.center,
             ),
-          ),
+          ],
         ],
       ),
     );
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) return Colors.green;
-    if (confidence >= 0.6) return Colors.orange;
-    return Colors.red;
   }
 }
