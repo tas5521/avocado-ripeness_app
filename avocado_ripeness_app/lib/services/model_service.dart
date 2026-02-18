@@ -85,7 +85,7 @@ class _InferResponse {
 /// ExecuTorchモデル推論サービス
 /// モデルの読み込みと推論を専用のバックグラウンドIsolateで実行する
 class ModelService {
-  static const String _modelPath = 'assets/models/avocado_ripeness.pte';
+  static const String _modelPath = 'assets/models/avocado_ripeness_lite0.pte';
   static const int _inputSize = 224;
   static const List<double> _mean = [0.485, 0.456, 0.406];
   static const List<double> _std = [0.229, 0.224, 0.225];
@@ -157,21 +157,23 @@ class ModelService {
     try {
       final responsePort = ReceivePort();
 
-      _sendPort!.send(_InferRequest(
-        replyPort: responsePort.sendPort,
-        isBgra: isBgra,
-        bgraBytes: isBgra ? Uint8List.fromList(bgraBytes!) : null,
-        bgraBytesPerRow: bgraBytesPerRow,
-        yBytes: !isBgra ? Uint8List.fromList(yBytes!) : null,
-        uBytes: !isBgra ? Uint8List.fromList(uBytes!) : null,
-        vBytes: !isBgra ? Uint8List.fromList(vBytes!) : null,
-        width: width,
-        height: height,
-        yBytesPerRow: yBytesPerRow,
-        uvBytesPerRow: uvBytesPerRow,
-        uvPixelStride: uvPixelStride,
-        cropRect: cropRect,
-      ));
+      _sendPort!.send(
+        _InferRequest(
+          replyPort: responsePort.sendPort,
+          isBgra: isBgra,
+          bgraBytes: isBgra ? Uint8List.fromList(bgraBytes!) : null,
+          bgraBytesPerRow: bgraBytesPerRow,
+          yBytes: !isBgra ? Uint8List.fromList(yBytes!) : null,
+          uBytes: !isBgra ? Uint8List.fromList(uBytes!) : null,
+          vBytes: !isBgra ? Uint8List.fromList(vBytes!) : null,
+          width: width,
+          height: height,
+          yBytesPerRow: yBytesPerRow,
+          uvBytesPerRow: uvBytesPerRow,
+          uvPixelStride: uvPixelStride,
+          cropRect: cropRect,
+        ),
+      );
 
       final response = await responsePort.first as _InferResponse;
 
