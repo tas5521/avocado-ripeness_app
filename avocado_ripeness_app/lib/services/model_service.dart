@@ -11,10 +11,14 @@ class InferenceResult {
   final String className;
   final double confidence;
 
+  /// 期待値（1.0=未熟 〜 5.0=過熟）
+  final double expectedValue;
+
   InferenceResult({
     required this.classIndex,
     required this.className,
     required this.confidence,
+    required this.expectedValue,
   });
 }
 
@@ -77,9 +81,15 @@ class _InferRequest {
 class _InferResponse {
   final int? classIndex;
   final double? confidence;
+  final double? expectedValue;
   final String? error;
 
-  _InferResponse({this.classIndex, this.confidence, this.error});
+  _InferResponse({
+    this.classIndex,
+    this.confidence,
+    this.expectedValue,
+    this.error,
+  });
 }
 
 /// ExecuTorchモデル推論サービス
@@ -184,10 +194,23 @@ class ModelService {
 
       if (response.classIndex == null) return null;
 
+      final expVal = response.expectedValue ?? 3.0;
+      final normalized = ((expVal - 1.0) / 4.0).clamp(0.0, 1.0);
+      final labelIndex = normalized < 0.2
+          ? 0
+          : normalized < 0.4
+              ? 1
+              : normalized < 0.6
+                  ? 2
+                  : normalized < 0.8
+                      ? 3
+                      : 4;
+
       return InferenceResult(
-        classIndex: response.classIndex!,
-        className: CLASS_NAMES[response.classIndex!] ?? 'Unknown',
+        classIndex: labelIndex,
+        className: CLASS_NAMES[labelIndex] ?? 'Unknown',
         confidence: response.confidence ?? 0.0,
+        expectedValue: expVal,
       );
     } catch (e) {
       print('推論エラー: $e');
@@ -259,14 +282,21 @@ class ModelService {
 
       double maxProb = 0.0;
       int maxIndex = 0;
+      double expVal = 0.0;
       for (int i = 0; i < probabilities.length; i++) {
         if (probabilities[i] > maxProb) {
           maxProb = probabilities[i];
           maxIndex = i;
         }
+        // 期待値: クラス0→1, クラス1→2, ..., クラス4→5
+        expVal += (i + 1) * probabilities[i];
       }
 
-      return _InferResponse(classIndex: maxIndex, confidence: maxProb);
+      return _InferResponse(
+        classIndex: maxIndex,
+        confidence: maxProb,
+        expectedValue: expVal,
+      );
     } catch (e) {
       return _InferResponse(error: '$e');
     }

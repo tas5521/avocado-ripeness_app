@@ -294,7 +294,7 @@ class CameraScreen extends HookWidget {
 
           // 推論結果オーバーレイ
           Positioned(
-            top: 60.h,
+            top: 85.h,
             left: 0,
             right: 0,
             child: RepaintBoundary(
@@ -638,13 +638,12 @@ class _ResultOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = result.className.split('\n');
-    final japanese = parts.isNotEmpty ? parts[0] : result.className;
-    final english = parts.length > 1 ? parts[1].trim() : '';
+    // 期待値を0.0〜1.0に正規化（1.0〜5.0 → 0.0〜1.0）
+    final normalized = ((result.expectedValue - 1.0) / 4.0).clamp(0.0, 1.0);
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 32.w),
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+      margin: EdgeInsets.symmetric(horizontal: 28.w),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.7),
         borderRadius: BorderRadius.circular(12.r),
@@ -654,32 +653,96 @@ class _ResultOverlay extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            '成熟度',
+            result.className,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            japanese,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24.sp,
+              fontSize: 22.sp,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
-          if (english.isNotEmpty) ...[
-            SizedBox(height: 4.h),
-            Text(
-              english,
-              style: TextStyle(color: Colors.white70, fontSize: 14.sp),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          SizedBox(height: 10.h),
+          _RipenessBar(value: normalized),
+          SizedBox(height: 4.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '未熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
+                'やや未熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
+                '適熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
+                'やや過熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
+                '過熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// 緑→黄→赤のグラデーションバーにインジケーターを表示
+class _RipenessBar extends StatelessWidget {
+  final double value;
+
+  const _RipenessBar({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28.h,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final barWidth = constraints.maxWidth;
+          final indicatorX = (value * barWidth).clamp(0.0, barWidth);
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // グラデーションバー
+              Container(
+                height: 10.h,
+                margin: EdgeInsets.only(top: 12.h),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5.r),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF4CAF50),
+                      Color(0xFF8BC34A),
+                      Color(0xFFFFEB3B),
+                      Color(0xFFFF9800),
+                      Color(0xFFF44336),
+                    ],
+                  ),
+                ),
+              ),
+              // インジケーター
+              Positioned(
+                left: indicatorX - 13.w,
+                top: 0,
+                child: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white,
+                  size: 26.sp,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
