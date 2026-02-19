@@ -337,66 +337,63 @@ class CameraScreen extends HookWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('アボカド成熟度チェッカー', style: TextStyle(fontSize: 18)),
+        title: Text('アボカド成熟度チェッカー', style: TextStyle(fontSize: 18.sp)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Version 1.0.0',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'アボカドの成熟度をAIで判定するアプリです。',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              const Text(
+              SizedBox(height: 16.h),
+              Text('アボカドの成熟度をAIで判定するアプリです。', style: TextStyle(fontSize: 14.sp)),
+              SizedBox(height: 24.h),
+              Text(
                 'データセット情報',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8.h),
+              Text(
                 '本アプリは以下のデータセットを使用して学習しました：',
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 12.sp),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8.h),
+              Text(
                 "'Hass' Avocado Ripening Photographic Dataset",
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4.h),
+              Text(
                 'DOI: 10.17632/3xd9n945v8.1',
-                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: 11.sp, fontStyle: FontStyle.italic),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8.h),
+              Text(
                 '作成者: Pedro Xavier, Pedro Rodrigues, Cristina L. M. Silva',
-                style: TextStyle(fontSize: 11),
+                style: TextStyle(fontSize: 11.sp),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4.h),
+              Text(
                 '機関: Centro de Biotecnologia e Quimica Fina',
-                style: TextStyle(fontSize: 11),
+                style: TextStyle(fontSize: 11.sp),
               ),
-              const SizedBox(height: 4),
-              const Text('ライセンス: CC BY 4.0', style: TextStyle(fontSize: 11)),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 4.h),
+              Text('ライセンス: CC BY 4.0', style: TextStyle(fontSize: 11.sp)),
+              SizedBox(height: 8.h),
+              Text(
                 'https://data.mendeley.com/datasets/3xd9n945v8/1',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 11.sp,
                   color: Colors.blue,
                   decoration: TextDecoration.underline,
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16.h),
+              Text(
                 'データセットの引用元を参照してください。',
-                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: 11.sp, fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -618,7 +615,7 @@ class _GuideOvalPainter extends CustomPainter {
     final borderPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 2.5.w;
     canvas.drawOval(ovalRect, borderPaint);
   }
 
