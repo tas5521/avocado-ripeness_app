@@ -14,7 +14,7 @@ void main() async {
   try {
     cameras = await availableCameras();
   } catch (e) {
-    print('カメラの取得に失敗しました: $e');
+    debugPrint('カメラの取得に失敗しました: $e');
   }
 
   runApp(MyApp(cameras: cameras));
@@ -120,13 +120,13 @@ class CameraScreen extends HookWidget {
             if (!disposed) {
               modelServiceRef.value = service;
               isModelReady.value = true;
-              print('モデルの初期化が完了しました');
+              debugPrint('モデルの初期化が完了しました');
             }
           })
           .catchError((error) {
             if (!disposed) {
               errorMessage.value = 'モデルの読み込みに失敗: $error';
-              print('モデル初期化エラー: $error');
+              debugPrint('モデル初期化エラー: $error');
             }
           });
 
@@ -154,11 +154,11 @@ class CameraScreen extends HookWidget {
           .then((_) {
             cameraController.value = controller;
             isCameraInitialized.value = true;
-            print('カメラの初期化が完了しました');
+            debugPrint('カメラの初期化が完了しました');
           })
           .catchError((error) {
             errorMessage.value = 'カメラの初期化に失敗: $error';
-            print('カメラ初期化エラー: $error');
+            debugPrint('カメラ初期化エラー: $error');
           });
 
       return () {
@@ -178,7 +178,7 @@ class CameraScreen extends HookWidget {
         return null;
       }
 
-      print('推論タイマーを開始します');
+      debugPrint('推論タイマーを開始します');
 
       timerRef.value = Timer.periodic(
         const Duration(milliseconds: 1500),
@@ -194,11 +194,7 @@ class CameraScreen extends HookWidget {
         timerRef.value?.cancel();
         timerRef.value = null;
       };
-    }, [
-      isInForeground.value,
-      isCameraInitialized.value,
-      isModelReady.value,
-    ]);
+    }, [isInForeground.value, isCameraInitialized.value, isModelReady.value]);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -531,7 +527,7 @@ class CameraScreen extends HookWidget {
         resultNotifier.value = result;
       }
     } catch (e) {
-      print('推論サイクルエラー: $e');
+      debugPrint('推論サイクルエラー: $e');
     } finally {
       isProcessing.value = false;
     }

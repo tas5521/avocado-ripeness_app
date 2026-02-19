@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:executorch_flutter/executorch_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../constants/class_names.dart';
 
@@ -116,10 +116,10 @@ class ModelService {
     if (_isInitialized) return;
 
     try {
-      print('メインIsolate: アセットからモデルバイトを読み込み中...');
+      debugPrint('メインIsolate: アセットからモデルバイトを読み込み中...');
       final byteData = await rootBundle.load(_modelPath);
       final modelBytes = byteData.buffer.asUint8List();
-      print('メインIsolate: モデルバイト読み込み完了 (${modelBytes.length} bytes)');
+      debugPrint('メインIsolate: モデルバイト読み込み完了 (${modelBytes.length} bytes)');
 
       final rootToken = RootIsolateToken.instance!;
       final receivePort = ReceivePort();
@@ -137,12 +137,12 @@ class ModelService {
       if (firstMessage is SendPort) {
         _sendPort = firstMessage;
         _isInitialized = true;
-        print('バックグラウンドIsolateでモデルの初期化が完了しました');
+        debugPrint('バックグラウンドIsolateでモデルの初期化が完了しました');
       } else if (firstMessage is String) {
         throw Exception(firstMessage);
       }
     } catch (e) {
-      print('モデル初期化エラー: $e');
+      debugPrint('モデル初期化エラー: $e');
       throw Exception('モデルの読み込みに失敗しました: $e');
     }
   }
@@ -188,7 +188,7 @@ class ModelService {
       final response = await responsePort.first as _InferResponse;
 
       if (response.error != null) {
-        print('推論エラー: ${response.error}');
+        debugPrint('推論エラー: ${response.error}');
         return null;
       }
 
@@ -199,21 +199,21 @@ class ModelService {
       final labelIndex = normalized < 0.2
           ? 0
           : normalized < 0.4
-              ? 1
-              : normalized < 0.6
-                  ? 2
-                  : normalized < 0.8
-                      ? 3
-                      : 4;
+          ? 1
+          : normalized < 0.6
+          ? 2
+          : normalized < 0.8
+          ? 3
+          : 4;
 
       return InferenceResult(
         classIndex: labelIndex,
-        className: CLASS_NAMES[labelIndex] ?? 'Unknown',
+        className: classNames[labelIndex] ?? 'Unknown',
         confidence: response.confidence ?? 0.0,
         expectedValue: expVal,
       );
     } catch (e) {
-      print('推論エラー: $e');
+      debugPrint('推論エラー: $e');
       return null;
     }
   }
@@ -232,11 +232,11 @@ class ModelService {
     BackgroundIsolateBinaryMessenger.ensureInitialized(params.rootToken);
 
     try {
-      print('バックグラウンドIsolate: ExecutorchManagerを初期化中...');
+      debugPrint('バックグラウンドIsolate: ExecutorchManagerを初期化中...');
       await ExecutorchManager.instance.initialize();
-      print('バックグラウンドIsolate: バイトからモデルを読み込み中...');
+      debugPrint('バックグラウンドIsolate: バイトからモデルを読み込み中...');
       final model = await ExecuTorchModel.loadFromBytes(params.modelBytes);
-      print('バックグラウンドIsolate: モデル読み込み完了');
+      debugPrint('バックグラウンドIsolate: モデル読み込み完了');
 
       final receivePort = ReceivePort();
       params.sendPort.send(receivePort.sendPort);
@@ -248,7 +248,7 @@ class ModelService {
         }
       }
     } catch (e) {
-      print('バックグラウンドIsolateエラー: $e');
+      debugPrint('バックグラウンドIsolateエラー: $e');
       params.sendPort.send('初期化エラー: $e');
     }
   }
