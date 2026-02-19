@@ -259,7 +259,7 @@ class CameraScreen extends HookWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
@@ -277,7 +277,7 @@ class CameraScreen extends HookWidget {
                 padding: EdgeInsets.all(16.w),
                 margin: EdgeInsets.all(16.w),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.8),
+                  color: Colors.red.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Text(
@@ -317,7 +317,7 @@ class CameraScreen extends HookWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
@@ -611,12 +611,12 @@ class _GuideOvalPainter extends CustomPainter {
 
     canvas.drawPath(
       overlayPath,
-      Paint()..color = Colors.black.withOpacity(0.45),
+      Paint()..color = Colors.black.withValues(alpha: 0.45),
     );
 
     // 楕円の枠線
     final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
+      ..color = Colors.white.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawOval(ovalRect, borderPaint);
@@ -641,7 +641,7 @@ class _ResultOverlay extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 28.w),
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
