@@ -274,9 +274,12 @@ class ModelService {
 
   /// 画像の前処理
   /// CropRectが指定されている場合:
-  ///   1. 楕円領域内のピクセルだけを抽出
-  ///   2. 楕円外は白背景(255,255,255)で埋める
-  ///   3. Crop領域を224x224にリサイズして正規化
+  ///   1. 楕円領域内のピクセルを抽出
+  ///   2. 楕円境界付近はフェザリング（カメラ画像と白背景をブレンド）
+  ///   3. 楕円外は白背景(255,255,255)で埋める
+  ///   4. Crop領域を224x224にリサイズして正規化
+  static const double _featherWidth = 0.15;
+
   static Float32List _preprocess(_InferRequest req) {
     final totalSize = 3 * _inputSize * _inputSize;
     final tensor = Float32List(totalSize);
@@ -284,7 +287,6 @@ class ModelService {
     final crop = req.cropRect;
 
     if (crop != null && crop.width > 0 && crop.height > 0) {
-      // 楕円Crop + 白背景モード
       final scaleX = crop.width / _inputSize;
       final scaleY = crop.height / _inputSize;
       final cx = crop.centerX;
@@ -292,21 +294,28 @@ class ModelService {
       final rx = crop.radiusX;
       final ry = crop.radiusY;
 
+      // フェザリング開始位置（楕円内側からブレンド開始）
+      final featherStart = 1.0 - _featherWidth;
+
       for (int h = 0; h < _inputSize; h++) {
         for (int w = 0; w < _inputSize; w++) {
           final srcX = (crop.left + w * scaleX).round().clamp(0, req.width - 1);
           final srcY = (crop.top + h * scaleY).round().clamp(0, req.height - 1);
 
-          // 楕円内判定: ((x-cx)/rx)^2 + ((y-cy)/ry)^2 <= 1
           final dx = (srcX - cx) / rx;
           final dy = (srcY - cy) / ry;
-          final inEllipse = (dx * dx + dy * dy) <= 1.0;
+          final dist = dx * dx + dy * dy;
 
           final offset = h * _inputSize + w;
 
-          if (inEllipse) {
-            // 楕円内: カメラ画像からピクセルを取得
+          if (dist <= featherStart * featherStart) {
+            // 楕円内側: カメラ画像をそのまま使用
             _setPixelFromSource(tensor, offset, chSize, req, srcX, srcY);
+          } else if (dist <= 1.0) {
+            // フェザリング領域: カメラ画像と白背景をブレンド
+            final d = math.sqrt(dist);
+            final blend = (d - featherStart) / _featherWidth;
+            _setBlendedPixel(tensor, offset, chSize, req, srcX, srcY, blend);
           } else {
             // 楕円外: 白背景
             tensor[offset] = _whiteBgNormalized[0];
@@ -367,6 +376,51 @@ class ModelService {
       tensor[chSize + offset] = (g / 255.0 - _mean[1]) / _std[1];
       tensor[chSize * 2 + offset] = (b / 255.0 - _mean[2]) / _std[2];
     }
+  }
+
+  /// フェザリング: カメラ画像と白背景をブレンドしてテンソルに書き込む
+  /// blend: 0.0 = カメラ画像のみ, 1.0 = 白背景のみ
+  static void _setBlendedPixel(
+    Float32List tensor,
+    int offset,
+    int chSize,
+    _InferRequest req,
+    int srcX,
+    int srcY,
+    double blend,
+  ) {
+    final b = blend.clamp(0.0, 1.0);
+    final a = 1.0 - b;
+
+    double rNorm, gNorm, bNorm;
+
+    if (req.isBgra) {
+      final i = srcY * req.bgraBytesPerRow! + srcX * 4;
+      final bytes = req.bgraBytes!;
+      rNorm = (bytes[i + 2] / 255.0 - _mean[0]) / _std[0];
+      gNorm = (bytes[i + 1] / 255.0 - _mean[1]) / _std[1];
+      bNorm = (bytes[i] / 255.0 - _mean[2]) / _std[2];
+    } else {
+      final yVal = req.yBytes![srcY * req.yBytesPerRow + srcX];
+      final uvIdx =
+          (srcY ~/ 2) * req.uvBytesPerRow + (srcX ~/ 2) * req.uvPixelStride;
+      final uVal = req.uBytes![uvIdx];
+      final vVal = req.vBytes![uvIdx];
+
+      final r = (yVal + 1.402 * (vVal - 128)).round().clamp(0, 255);
+      final g = (yVal - 0.344 * (uVal - 128) - 0.714 * (vVal - 128))
+          .round()
+          .clamp(0, 255);
+      final bv = (yVal + 1.772 * (uVal - 128)).round().clamp(0, 255);
+
+      rNorm = (r / 255.0 - _mean[0]) / _std[0];
+      gNorm = (g / 255.0 - _mean[1]) / _std[1];
+      bNorm = (bv / 255.0 - _mean[2]) / _std[2];
+    }
+
+    tensor[offset] = a * rNorm + b * _whiteBgNormalized[0];
+    tensor[chSize + offset] = a * gNorm + b * _whiteBgNormalized[1];
+    tensor[chSize * 2 + offset] = a * bNorm + b * _whiteBgNormalized[2];
   }
 }
 
