@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'constants/class_names.dart';
 import 'services/model_service.dart';
 
 void main() async {
@@ -97,6 +98,7 @@ class CameraScreen extends HookWidget {
     final modelServiceRef = useRef<ModelService?>(null);
     final timerRef = useRef<Timer?>(null);
     final isProcessingRef = useRef<bool>(false);
+    final emaRef = useRef<double?>(null);
     final isInForeground = useState<bool>(true);
 
     // アプリのライフサイクル監視（バックグラウンド時に推論を停止）
@@ -181,12 +183,13 @@ class CameraScreen extends HookWidget {
       debugPrint('推論タイマーを開始します');
 
       timerRef.value = Timer.periodic(
-        const Duration(milliseconds: 1500),
+        const Duration(milliseconds: 500),
         (_) => _captureAndInfer(
           cameraController.value!,
           modelServiceRef.value!,
           isProcessingRef,
           resultNotifier,
+          emaRef,
         ),
       );
 
@@ -477,12 +480,16 @@ class CameraScreen extends HookWidget {
     );
   }
 
+  /// EMAの重み（0に近いほど過去の値を重視、1で平滑化なし）
+  static const double _emaAlpha = 0.5;
+
   /// 1フレームだけキャプチャして推論を実行
   static Future<void> _captureAndInfer(
     CameraController controller,
     ModelService service,
     ObjectRef<bool> isProcessing,
     ValueNotifier<InferenceResult?> resultNotifier,
+    ObjectRef<double?> emaRef,
   ) async {
     if (isProcessing.value) return;
     if (!controller.value.isInitialized) return;
@@ -490,10 +497,8 @@ class CameraScreen extends HookWidget {
     isProcessing.value = true;
 
     try {
-      // Crop矩形を計算
       final cropRect = _computeCropRect(controller);
 
-      // 画像ストリームを開始して1フレームだけキャプチャ
       final completer = Completer<_FrameData>();
 
       controller.startImageStream((CameraImage image) {
@@ -521,7 +526,25 @@ class CameraScreen extends HookWidget {
       );
 
       if (result != null) {
-        resultNotifier.value = result;
+        final prev = emaRef.value;
+        final smoothed = prev == null
+            ? result.expectedValue
+            : prev * (1.0 - _emaAlpha) + result.expectedValue * _emaAlpha;
+        emaRef.value = smoothed;
+
+        final normalized = ((smoothed - 1.0) / 2.0).clamp(0.0, 1.0);
+        final labelIndex = normalized < (1.0 / 3.0)
+            ? 0
+            : normalized < (2.0 / 3.0)
+            ? 1
+            : 2;
+
+        resultNotifier.value = InferenceResult(
+          classIndex: labelIndex,
+          className: classNames[labelIndex] ?? 'Unknown',
+          confidence: result.confidence,
+          expectedValue: smoothed,
+        );
       }
     } catch (e) {
       debugPrint('推論サイクルエラー: $e');
@@ -631,8 +654,8 @@ class _ResultOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 期待値を0.0〜1.0に正規化（1.0〜5.0 → 0.0〜1.0）
-    final normalized = ((result.expectedValue - 1.0) / 4.0).clamp(0.0, 1.0);
+    // 期待値を0.0〜1.0に正規化（1.0〜3.0 → 0.0〜1.0）
+    final normalized = ((result.expectedValue - 1.0) / 2.0).clamp(0.0, 1.0);
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 28.w),
@@ -665,15 +688,7 @@ class _ResultOverlay extends StatelessWidget {
                 style: TextStyle(color: Colors.white70, fontSize: 13.sp),
               ),
               Text(
-                'やや未熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
-              ),
-              Text(
                 '適熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
-              ),
-              Text(
-                'やや過熟',
                 style: TextStyle(color: Colors.white70, fontSize: 13.sp),
               ),
               Text(

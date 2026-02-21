@@ -11,7 +11,7 @@ class InferenceResult {
   final String className;
   final double confidence;
 
-  /// 期待値（1.0=未熟 〜 5.0=過熟）
+  /// 期待値（1.0=未熟 〜 3.0=過熟）
   final double expectedValue;
 
   InferenceResult({
@@ -95,7 +95,7 @@ class _InferResponse {
 /// ExecuTorchモデル推論サービス
 /// モデルの読み込みと推論を専用のバックグラウンドIsolateで実行する
 class ModelService {
-  static const String _modelPath = 'assets/models/avocado_ripeness_lite0.pte';
+  static const String _modelPath = 'assets/models/efficientnet_lite0.pte';
   static const int _inputSize = 224;
   static const List<double> _mean = [0.485, 0.456, 0.406];
   static const List<double> _std = [0.229, 0.224, 0.225];
@@ -194,23 +194,11 @@ class ModelService {
 
       if (response.classIndex == null) return null;
 
-      final expVal = response.expectedValue ?? 3.0;
-      final normalized = ((expVal - 1.0) / 4.0).clamp(0.0, 1.0);
-      final labelIndex = normalized < 0.2
-          ? 0
-          : normalized < 0.4
-          ? 1
-          : normalized < 0.6
-          ? 2
-          : normalized < 0.8
-          ? 3
-          : 4;
-
       return InferenceResult(
-        classIndex: labelIndex,
-        className: classNames[labelIndex] ?? 'Unknown',
+        classIndex: response.classIndex!,
+        className: classNames[response.classIndex!] ?? 'Unknown',
         confidence: response.confidence ?? 0.0,
-        expectedValue: expVal,
+        expectedValue: response.expectedValue ?? 2.0,
       );
     } catch (e) {
       debugPrint('推論エラー: $e');
@@ -276,9 +264,15 @@ class ModelService {
       final outputData = outputs[0].data.buffer.asFloat32List();
       final logits = outputData.toList();
 
+      debugPrint('logits(${logits.length}): $logits');
+
       final expLogits = logits.map((x) => math.exp(x)).toList();
       final sumExp = expLogits.reduce((a, b) => a + b);
       final probabilities = expLogits.map((x) => x / sumExp).toList();
+
+      debugPrint(
+        'probs: ${probabilities.map((p) => p.toStringAsFixed(4)).toList()}',
+      );
 
       double maxProb = 0.0;
       int maxIndex = 0;
@@ -288,7 +282,7 @@ class ModelService {
           maxProb = probabilities[i];
           maxIndex = i;
         }
-        // 期待値: クラス0→1, クラス1→2, ..., クラス4→5
+        // 期待値: クラス0→1, クラス1→2, クラス2→3
         expVal += (i + 1) * probabilities[i];
       }
 
@@ -310,6 +304,41 @@ class ModelService {
   ///   4. Crop領域を224x224にリサイズして正規化
   static const double _featherWidth = 0.15;
 
+  /// ソース画像からRGB (0-255) を取得
+  static List<int> _getRgb(_InferRequest req, int srcX, int srcY) {
+    if (req.isBgra) {
+      final i = srcY * req.bgraBytesPerRow! + srcX * 4;
+      final bytes = req.bgraBytes!;
+      return [bytes[i + 2], bytes[i + 1], bytes[i]];
+    } else {
+      final yVal = req.yBytes![srcY * req.yBytesPerRow + srcX];
+      final uvIdx =
+          (srcY ~/ 2) * req.uvBytesPerRow + (srcX ~/ 2) * req.uvPixelStride;
+      final uVal = req.uBytes![uvIdx];
+      final vVal = req.vBytes![uvIdx];
+      return [
+        (yVal + 1.402 * (vVal - 128)).round().clamp(0, 255),
+        (yVal - 0.344 * (uVal - 128) - 0.714 * (vVal - 128)).round().clamp(
+          0,
+          255,
+        ),
+        (yVal + 1.772 * (uVal - 128)).round().clamp(0, 255),
+      ];
+    }
+  }
+
+  /// RGBをImageNet正規化してテンソルに書き込む
+  static void _writeNormalized(
+    Float32List tensor,
+    int offset,
+    int chSize,
+    List<int> rgb,
+  ) {
+    tensor[offset] = (rgb[0] / 255.0 - _mean[0]) / _std[0];
+    tensor[chSize + offset] = (rgb[1] / 255.0 - _mean[1]) / _std[1];
+    tensor[chSize * 2 + offset] = (rgb[2] / 255.0 - _mean[2]) / _std[2];
+  }
+
   static Float32List _preprocess(_InferRequest req) {
     final totalSize = 3 * _inputSize * _inputSize;
     final tensor = Float32List(totalSize);
@@ -323,8 +352,6 @@ class ModelService {
       final cy = crop.centerY;
       final rx = crop.radiusX;
       final ry = crop.radiusY;
-
-      // フェザリング開始位置（楕円内側からブレンド開始）
       final featherStart = 1.0 - _featherWidth;
 
       for (int h = 0; h < _inputSize; h++) {
@@ -335,19 +362,29 @@ class ModelService {
           final dx = (srcX - cx) / rx;
           final dy = (srcY - cy) / ry;
           final dist = dx * dx + dy * dy;
-
           final offset = h * _inputSize + w;
 
           if (dist <= featherStart * featherStart) {
-            // 楕円内側: カメラ画像をそのまま使用
-            _setPixelFromSource(tensor, offset, chSize, req, srcX, srcY);
+            _writeNormalized(tensor, offset, chSize, _getRgb(req, srcX, srcY));
           } else if (dist <= 1.0) {
-            // フェザリング領域: カメラ画像と白背景をブレンド
             final d = math.sqrt(dist);
-            final blend = (d - featherStart) / _featherWidth;
-            _setBlendedPixel(tensor, offset, chSize, req, srcX, srcY, blend);
+            final blendFactor = ((d - featherStart) / _featherWidth).clamp(
+              0.0,
+              1.0,
+            );
+            final keep = 1.0 - blendFactor;
+
+            final rgb = _getRgb(req, srcX, srcY);
+            final rN = (rgb[0] / 255.0 - _mean[0]) / _std[0];
+            final gN = (rgb[1] / 255.0 - _mean[1]) / _std[1];
+            final bN = (rgb[2] / 255.0 - _mean[2]) / _std[2];
+
+            tensor[offset] = keep * rN + blendFactor * _whiteBgNormalized[0];
+            tensor[chSize + offset] =
+                keep * gN + blendFactor * _whiteBgNormalized[1];
+            tensor[chSize * 2 + offset] =
+                keep * bN + blendFactor * _whiteBgNormalized[2];
           } else {
-            // 楕円外: 白背景
             tensor[offset] = _whiteBgNormalized[0];
             tensor[chSize + offset] = _whiteBgNormalized[1];
             tensor[chSize * 2 + offset] = _whiteBgNormalized[2];
@@ -355,7 +392,6 @@ class ModelService {
         }
       }
     } else {
-      // Cropなし: 画像全体をリサイズ（従来動作）
       final scaleX = req.width / _inputSize;
       final scaleY = req.height / _inputSize;
 
@@ -364,93 +400,12 @@ class ModelService {
         for (int w = 0; w < _inputSize; w++) {
           final srcX = (w * scaleX).toInt().clamp(0, req.width - 1);
           final offset = h * _inputSize + w;
-          _setPixelFromSource(tensor, offset, chSize, req, srcX, srcY);
+          _writeNormalized(tensor, offset, chSize, _getRgb(req, srcX, srcY));
         }
       }
     }
 
     return tensor;
-  }
-
-  /// ソース画像のピクセルを正規化してテンソルに書き込む
-  static void _setPixelFromSource(
-    Float32List tensor,
-    int offset,
-    int chSize,
-    _InferRequest req,
-    int srcX,
-    int srcY,
-  ) {
-    if (req.isBgra) {
-      final i = srcY * req.bgraBytesPerRow! + srcX * 4;
-      final bytes = req.bgraBytes!;
-      tensor[offset] = (bytes[i + 2] / 255.0 - _mean[0]) / _std[0]; // R
-      tensor[chSize + offset] =
-          (bytes[i + 1] / 255.0 - _mean[1]) / _std[1]; // G
-      tensor[chSize * 2 + offset] =
-          (bytes[i] / 255.0 - _mean[2]) / _std[2]; // B
-    } else {
-      final yVal = req.yBytes![srcY * req.yBytesPerRow + srcX];
-      final uvIdx =
-          (srcY ~/ 2) * req.uvBytesPerRow + (srcX ~/ 2) * req.uvPixelStride;
-      final uVal = req.uBytes![uvIdx];
-      final vVal = req.vBytes![uvIdx];
-
-      final r = (yVal + 1.402 * (vVal - 128)).round().clamp(0, 255);
-      final g = (yVal - 0.344 * (uVal - 128) - 0.714 * (vVal - 128))
-          .round()
-          .clamp(0, 255);
-      final b = (yVal + 1.772 * (uVal - 128)).round().clamp(0, 255);
-
-      tensor[offset] = (r / 255.0 - _mean[0]) / _std[0];
-      tensor[chSize + offset] = (g / 255.0 - _mean[1]) / _std[1];
-      tensor[chSize * 2 + offset] = (b / 255.0 - _mean[2]) / _std[2];
-    }
-  }
-
-  /// フェザリング: カメラ画像と白背景をブレンドしてテンソルに書き込む
-  /// blend: 0.0 = カメラ画像のみ, 1.0 = 白背景のみ
-  static void _setBlendedPixel(
-    Float32List tensor,
-    int offset,
-    int chSize,
-    _InferRequest req,
-    int srcX,
-    int srcY,
-    double blend,
-  ) {
-    final b = blend.clamp(0.0, 1.0);
-    final a = 1.0 - b;
-
-    double rNorm, gNorm, bNorm;
-
-    if (req.isBgra) {
-      final i = srcY * req.bgraBytesPerRow! + srcX * 4;
-      final bytes = req.bgraBytes!;
-      rNorm = (bytes[i + 2] / 255.0 - _mean[0]) / _std[0];
-      gNorm = (bytes[i + 1] / 255.0 - _mean[1]) / _std[1];
-      bNorm = (bytes[i] / 255.0 - _mean[2]) / _std[2];
-    } else {
-      final yVal = req.yBytes![srcY * req.yBytesPerRow + srcX];
-      final uvIdx =
-          (srcY ~/ 2) * req.uvBytesPerRow + (srcX ~/ 2) * req.uvPixelStride;
-      final uVal = req.uBytes![uvIdx];
-      final vVal = req.vBytes![uvIdx];
-
-      final r = (yVal + 1.402 * (vVal - 128)).round().clamp(0, 255);
-      final g = (yVal - 0.344 * (uVal - 128) - 0.714 * (vVal - 128))
-          .round()
-          .clamp(0, 255);
-      final bv = (yVal + 1.772 * (uVal - 128)).round().clamp(0, 255);
-
-      rNorm = (r / 255.0 - _mean[0]) / _std[0];
-      gNorm = (g / 255.0 - _mean[1]) / _std[1];
-      bNorm = (bv / 255.0 - _mean[2]) / _std[2];
-    }
-
-    tensor[offset] = a * rNorm + b * _whiteBgNormalized[0];
-    tensor[chSize + offset] = a * gNorm + b * _whiteBgNormalized[1];
-    tensor[chSize * 2 + offset] = a * bNorm + b * _whiteBgNormalized[2];
   }
 }
 

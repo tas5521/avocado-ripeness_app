@@ -1,8 +1,2 @@
 /// アボカド成熟度のクラス名定義
-const Map<int, String> classNames = {
-  0: "未熟",
-  1: "やや未熟",
-  2: "適熟",
-  3: "やや過熟",
-  4: "過熟",
-};
+const Map<int, String> classNames = {0: "未熟", 1: "適熟", 2: "過熟"};
