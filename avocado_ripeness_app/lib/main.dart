@@ -370,7 +370,7 @@ class CameraScreen extends HookWidget {
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
-                    'ここにアボカドを合わせてください',
+                    'アボカドを枠に合わせてください',
                     style: TextStyle(
                       color: _AppColors.textOnOverlay,
                       fontSize: 14.sp,
