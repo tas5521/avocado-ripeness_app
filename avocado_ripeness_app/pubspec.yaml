@@ -49,6 +49,12 @@ dependencies:
   
   # Image processing for preprocessing
   image: ^4.1.7
+  
+  # Permission handling
+  permission_handler: ^11.3.1
+  
+  # Open app settings
+  app_settings: ^5.1.1
 
 dev_dependencies:
   flutter_test:

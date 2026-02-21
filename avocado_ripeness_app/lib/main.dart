@@ -5,6 +5,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:app_settings/app_settings.dart';
 import 'services/model_service.dart';
 
 void main() async {
@@ -45,6 +47,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 /// アプリのライフサイクルを監視し、バックグラウンド/フォアグラウンドを検知
 class _AppLifecycleObserver with WidgetsBindingObserver {
@@ -157,8 +160,13 @@ class CameraScreen extends HookWidget {
             isCameraInitialized.value = true;
             debugPrint('カメラの初期化が完了しました');
           })
-          .catchError((error) {
-            errorMessage.value = 'カメラの初期化に失敗: $error';
+          .catchError((error) async {
+            final status = await Permission.camera.status;
+            if (!status.isGranted) {
+              errorMessage.value = 'カメラ権限が拒否されました';
+            } else {
+              errorMessage.value = 'カメラの初期化に失敗: $error';
+            }
             debugPrint('カメラ初期化エラー: $error');
           });
 
@@ -227,6 +235,69 @@ class CameraScreen extends HookWidget {
                 ),
               ),
             )
+          else if (errorMessage.value != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.white,
+                child: SafeArea(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.w),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            errorMessage.value!.contains('権限')
+                                ? Icons.camera_alt_outlined
+                                : Icons.error_outline,
+                            size: 64.sp,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 24.h),
+                          Text(
+                            errorMessage.value!,
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (errorMessage.value!.contains('権限')) ...[
+                            SizedBox(height: 12.h),
+                            Text(
+                              'アボカドの成熟度を判定するためには\nカメラへのアクセスが必要です',
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 32.h),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                await AppSettings.openAppSettings();
+                              },
+                              icon: const Icon(Icons.settings),
+                              label: Text(
+                                '設定を開く',
+                                style: TextStyle(fontSize: 16.sp),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 32.w,
+                                  vertical: 14.h,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
           else
             Center(
               child: Column(
@@ -235,9 +306,7 @@ class CameraScreen extends HookWidget {
                   const CircularProgressIndicator(),
                   SizedBox(height: 16.h),
                   Text(
-                    !isCameraInitialized.value
-                        ? 'カメラを初期化しています...'
-                        : 'モデルを読み込んでいます...',
+                    'カメラを初期化しています...',
                     style: TextStyle(fontSize: 16.sp),
                   ),
                 ],
@@ -268,24 +337,6 @@ class CameraScreen extends HookWidget {
                     'ここにアボカドを合わせてください',
                     style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   ),
-                ),
-              ),
-            ),
-
-          // エラーメッセージ
-          if (errorMessage.value != null)
-            Center(
-              child: Container(
-                padding: EdgeInsets.all(16.w),
-                margin: EdgeInsets.all(16.w),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  errorMessage.value!,
-                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ),
