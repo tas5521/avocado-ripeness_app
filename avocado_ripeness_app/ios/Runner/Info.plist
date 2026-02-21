@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Avocado Ripeness App</string>
+		<string>アボカド熟度チェッカー</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -46,7 +46,7 @@
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
-		<string>アボカドの成熟度を判定するためにカメラを使用します</string>
+		<string>アボカドの熟度を判定するためにカメラを使用します</string>
 		<key>NSBonjourServices</key>
 		<array>
 			<string>_dartVmService._tcp</string>

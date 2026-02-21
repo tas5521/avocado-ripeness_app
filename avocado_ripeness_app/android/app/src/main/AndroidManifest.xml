@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
     <application
-        android:label="avocado_ripeness_app"
+        android:label="アボカド熟度チェッカー"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

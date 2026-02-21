@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp(
-          title: 'アボカド成熟度チェッカー',
+          title: 'アボカド熟度チェッカー',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
             useMaterial3: true,
@@ -266,7 +266,7 @@ class CameraScreen extends HookWidget {
                           if (errorMessage.value!.contains('権限')) ...[
                             SizedBox(height: 12.h),
                             Text(
-                              'アボカドの成熟度を判定するためには\nカメラへのアクセスが必要です',
+                              'アボカドの熟度を判定するためには\nカメラへのアクセスが必要です',
                               style: TextStyle(
                                 fontSize: 14.sp,
                                 color: Colors.grey[600],
@@ -390,7 +390,7 @@ class CameraScreen extends HookWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('アボカド成熟度チェッカー', style: TextStyle(fontSize: 18.sp)),
+        title: Text('アボカド熟度チェッカー', style: TextStyle(fontSize: 18.sp)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -401,7 +401,7 @@ class CameraScreen extends HookWidget {
                 style: TextStyle(fontSize: 12.sp, color: Colors.grey),
               ),
               SizedBox(height: 16.h),
-              Text('アボカドの成熟度をAIで判定するアプリです。', style: TextStyle(fontSize: 14.sp)),
+              Text('アボカドの熟度をAIで判定するアプリです。', style: TextStyle(fontSize: 14.sp)),
               SizedBox(height: 24.h),
               Text(
                 'データセット情報',
@@ -472,7 +472,7 @@ class CameraScreen extends HookWidget {
   static void _showLicensePage(BuildContext context) {
     showLicensePage(
       context: context,
-      applicationName: 'アボカド成熟度チェッカー',
+      applicationName: 'アボカド熟度チェッカー',
       applicationVersion: '1.0.0',
     );
   }
