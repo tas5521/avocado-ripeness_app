@@ -32,7 +32,7 @@ flutter_icons:
   remove_alpha_ios: true
   android: true
   adaptive_icon_background: "assets/images/launcher/Avocado_Android_Background.001.png"
-  adaptive_icon_foreground: "assets/images/launcher/Avocado_Android.001.png"
+  adaptive_icon_foreground: "assets/images/launcher/Avocado_Android_Foreground.001.png"
 
 flutter_native_splash: 
   color: "#FFEABE"
