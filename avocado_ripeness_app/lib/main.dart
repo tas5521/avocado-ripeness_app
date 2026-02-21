@@ -5,7 +5,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'constants/class_names.dart';
 import 'services/model_service.dart';
 
 void main() async {
@@ -533,15 +532,31 @@ class CameraScreen extends HookWidget {
         emaRef.value = smoothed;
 
         final normalized = ((smoothed - 1.0) / 2.0).clamp(0.0, 1.0);
+
+        // 3クラス判定（classIndex用）
         final labelIndex = normalized < (1.0 / 3.0)
             ? 0
             : normalized < (2.0 / 3.0)
             ? 1
             : 2;
 
+        // 5段階ラベル（表示用）
+        final String displayLabel;
+        if (normalized < 0.2) {
+          displayLabel = '未熟';
+        } else if (normalized < 0.4) {
+          displayLabel = 'やや未熟';
+        } else if (normalized < 0.6) {
+          displayLabel = '適熟';
+        } else if (normalized < 0.8) {
+          displayLabel = 'やや過熟';
+        } else {
+          displayLabel = '過熟';
+        }
+
         resultNotifier.value = InferenceResult(
           classIndex: labelIndex,
-          className: classNames[labelIndex] ?? 'Unknown',
+          className: displayLabel,
           confidence: result.confidence,
           expectedValue: smoothed,
         );
@@ -688,7 +703,15 @@ class _ResultOverlay extends StatelessWidget {
                 style: TextStyle(color: Colors.white70, fontSize: 13.sp),
               ),
               Text(
+                'やや未熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
                 '適熟',
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+              ),
+              Text(
+                'やや過熟',
                 style: TextStyle(color: Colors.white70, fontSize: 13.sp),
               ),
               Text(
