@@ -9,6 +9,18 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
 import 'services/model_service.dart';
 
+// アイコンに合わせたカラーパレット
+class _AppColors {
+  static const background = Color(0xFFFFE2E0);
+  static const avocadoGreen = Color(0xFF5D7A4A);
+  static const avocadoLight = Color(0xFFC5E8A0);
+  static const avocadoBrown = Color(0xFF6D4C2A);
+  static const overlayBg = Color(0xCC3D2B1F);
+  static const textOnOverlay = Color(0xFFFFF5F0);
+  static const textMuted = Color(0xCCFFF5F0);
+  static const pillBg = Color(0x994A3728);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -37,7 +49,12 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'アボカド熟度チェッカー',
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: _AppColors.avocadoGreen,
+              primary: _AppColors.avocadoGreen,
+              surface: _AppColors.background,
+            ),
+            scaffoldBackgroundColor: _AppColors.background,
             useMaterial3: true,
           ),
           home: CameraScreen(cameras: cameras),
@@ -47,7 +64,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 /// アプリのライフサイクルを監視し、バックグラウンド/フォアグラウンドを検知
 class _AppLifecycleObserver with WidgetsBindingObserver {
@@ -213,7 +229,12 @@ class CameraScreen extends HookWidget {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
+            icon: Icon(
+              Icons.info_outline,
+              color: isCameraInitialized.value
+                  ? Colors.white
+                  : _AppColors.avocadoGreen,
+            ),
             onPressed: () => _showAboutDialog(context),
             tooltip: 'アプリ情報',
           ),
@@ -238,7 +259,7 @@ class CameraScreen extends HookWidget {
           else if (errorMessage.value != null)
             Positioned.fill(
               child: Container(
-                color: Colors.white,
+                color: _AppColors.background,
                 child: SafeArea(
                   child: Center(
                     child: Padding(
@@ -251,7 +272,7 @@ class CameraScreen extends HookWidget {
                                 ? Icons.camera_alt_outlined
                                 : Icons.error_outline,
                             size: 64.sp,
-                            color: Colors.grey,
+                            color: _AppColors.avocadoGreen,
                           ),
                           SizedBox(height: 24.h),
                           Text(
@@ -259,7 +280,7 @@ class CameraScreen extends HookWidget {
                             style: TextStyle(
                               fontSize: 18.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: _AppColors.avocadoBrown,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -269,7 +290,9 @@ class CameraScreen extends HookWidget {
                               'アボカドの熟度を判定するためには\nカメラへのアクセスが必要です',
                               style: TextStyle(
                                 fontSize: 14.sp,
-                                color: Colors.grey[600],
+                                color: _AppColors.avocadoBrown.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -278,12 +301,19 @@ class CameraScreen extends HookWidget {
                               onPressed: () async {
                                 await AppSettings.openAppSettings();
                               },
-                              icon: const Icon(Icons.settings),
+                              icon: const Icon(
+                                Icons.settings,
+                                color: Colors.white,
+                              ),
                               label: Text(
                                 '設定を開く',
-                                style: TextStyle(fontSize: 16.sp),
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  color: Colors.white,
+                                ),
                               ),
                               style: ElevatedButton.styleFrom(
+                                backgroundColor: _AppColors.avocadoGreen,
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 32.w,
                                   vertical: 14.h,
@@ -299,17 +329,23 @@ class CameraScreen extends HookWidget {
               ),
             )
           else
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  SizedBox(height: 16.h),
-                  Text(
-                    'カメラを初期化しています...',
-                    style: TextStyle(fontSize: 16.sp),
-                  ),
-                ],
+            Container(
+              color: _AppColors.background,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: _AppColors.avocadoGreen),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'カメラを初期化しています...',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        color: _AppColors.avocadoBrown,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -330,12 +366,15 @@ class CameraScreen extends HookWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
+                    color: _AppColors.pillBg,
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
                     'ここにアボカドを合わせてください',
-                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                    style: TextStyle(
+                      color: _AppColors.textOnOverlay,
+                      fontSize: 14.sp,
+                    ),
                   ),
                 ),
               ),
@@ -370,12 +409,15 @@ class CameraScreen extends HookWidget {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: _AppColors.pillBg,
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text(
                     'モデル読み込み中...',
-                    style: TextStyle(color: Colors.white, fontSize: 12.sp),
+                    style: TextStyle(
+                      color: _AppColors.textOnOverlay,
+                      fontSize: 12.sp,
+                    ),
                   ),
                 ),
               ),
@@ -390,7 +432,11 @@ class CameraScreen extends HookWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('アボカド熟度チェッカー', style: TextStyle(fontSize: 18.sp)),
+        backgroundColor: _AppColors.background,
+        title: Text(
+          'アボカド熟度チェッカー',
+          style: TextStyle(fontSize: 18.sp, color: _AppColors.avocadoBrown),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -398,55 +444,95 @@ class CameraScreen extends HookWidget {
             children: [
               Text(
                 'Version 1.0.0',
-                style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: _AppColors.avocadoBrown.withValues(alpha: 0.6),
+                ),
               ),
               SizedBox(height: 16.h),
-              Text('アボカドの熟度をAIで判定するアプリです。', style: TextStyle(fontSize: 14.sp)),
+              Text(
+                'アボカドの熟度をAIで判定するアプリです。',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  color: _AppColors.avocadoBrown,
+                ),
+              ),
               SizedBox(height: 24.h),
               Text(
                 'データセット情報',
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                  color: _AppColors.avocadoGreen,
+                ),
               ),
               SizedBox(height: 8.h),
               Text(
                 '本アプリは以下のデータセットを使用して学習しました：',
-                style: TextStyle(fontSize: 12.sp),
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: _AppColors.avocadoBrown,
+                ),
               ),
               SizedBox(height: 8.h),
               Text(
                 "'Hass' Avocado Ripening Photographic Dataset",
-                style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  color: _AppColors.avocadoBrown,
+                ),
               ),
               SizedBox(height: 4.h),
               Text(
                 'DOI: 10.17632/3xd9n945v8.1',
-                style: TextStyle(fontSize: 11.sp, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontStyle: FontStyle.italic,
+                  color: _AppColors.avocadoBrown.withValues(alpha: 0.8),
+                ),
               ),
               SizedBox(height: 8.h),
               Text(
                 '作成者: Pedro Xavier, Pedro Rodrigues, Cristina L. M. Silva',
-                style: TextStyle(fontSize: 11.sp),
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: _AppColors.avocadoBrown,
+                ),
               ),
               SizedBox(height: 4.h),
               Text(
                 '機関: Centro de Biotecnologia e Quimica Fina',
-                style: TextStyle(fontSize: 11.sp),
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: _AppColors.avocadoBrown,
+                ),
               ),
               SizedBox(height: 4.h),
-              Text('ライセンス: CC BY 4.0', style: TextStyle(fontSize: 11.sp)),
+              Text(
+                'ライセンス: CC BY 4.0',
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: _AppColors.avocadoBrown,
+                ),
+              ),
               SizedBox(height: 8.h),
               Text(
                 'https://data.mendeley.com/datasets/3xd9n945v8/1',
                 style: TextStyle(
                   fontSize: 11.sp,
-                  color: Colors.blue,
+                  color: _AppColors.avocadoGreen,
                   decoration: TextDecoration.underline,
                 ),
               ),
               SizedBox(height: 16.h),
               Text(
                 'データセットの引用元を参照してください。',
-                style: TextStyle(fontSize: 11.sp, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontStyle: FontStyle.italic,
+                  color: _AppColors.avocadoBrown.withValues(alpha: 0.7),
+                ),
               ),
             ],
           ),
@@ -457,11 +543,17 @@ class CameraScreen extends HookWidget {
               Navigator.of(context).pop();
               _showLicensePage(context);
             },
-            child: const Text('ライセンス'),
+            child: Text(
+              'ライセンス',
+              style: TextStyle(color: _AppColors.avocadoGreen),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
+            child: Text(
+              '閉じる',
+              style: TextStyle(color: _AppColors.avocadoGreen),
+            ),
           ),
         ],
       ),
@@ -697,12 +789,12 @@ class _GuideOvalPainter extends CustomPainter {
 
     canvas.drawPath(
       overlayPath,
-      Paint()..color = Colors.black.withValues(alpha: 0.45),
+      Paint()..color = _AppColors.avocadoBrown.withValues(alpha: 0.40),
     );
 
     // 楕円の枠線
     final borderPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.8)
+      ..color = _AppColors.avocadoLight.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5.w;
     canvas.drawOval(ovalRect, borderPaint);
@@ -727,7 +819,7 @@ class _ResultOverlay extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 28.w),
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
+        color: _AppColors.overlayBg,
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
@@ -737,7 +829,7 @@ class _ResultOverlay extends StatelessWidget {
           Text(
             result.className,
             style: TextStyle(
-              color: Colors.white,
+              color: _AppColors.textOnOverlay,
               fontSize: 22.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -751,23 +843,23 @@ class _ResultOverlay extends StatelessWidget {
             children: [
               Text(
                 '未熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+                style: TextStyle(color: _AppColors.textMuted, fontSize: 13.sp),
               ),
               Text(
                 'やや未熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+                style: TextStyle(color: _AppColors.textMuted, fontSize: 13.sp),
               ),
               Text(
                 '適熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+                style: TextStyle(color: _AppColors.textMuted, fontSize: 13.sp),
               ),
               Text(
                 'やや過熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+                style: TextStyle(color: _AppColors.textMuted, fontSize: 13.sp),
               ),
               Text(
                 '過熟',
-                style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+                style: TextStyle(color: _AppColors.textMuted, fontSize: 13.sp),
               ),
             ],
           ),
@@ -818,7 +910,7 @@ class _RipenessBar extends StatelessWidget {
                 top: 0,
                 child: Icon(
                   Icons.arrow_drop_down,
-                  color: Colors.white,
+                  color: _AppColors.textOnOverlay,
                   size: 26.sp,
                 ),
               ),
