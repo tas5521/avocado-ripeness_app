@@ -35,10 +35,10 @@ flutter_icons:
   adaptive_icon_foreground: "assets/images/launcher/Avocado_Android_Foreground.001.png"
 
 flutter_native_splash: 
-  color: "#FFEABE"
+  color: "#FFE2E0"
   image: "assets/images/splash/Avocado_splash.png"
   android_12: 
-    icon_background_color: "#FFEABE"
+    icon_background_color: "#FFE2E0"
     image: "assets/images/splash/Avocado_splash.png"
   android: true
   ios: true
