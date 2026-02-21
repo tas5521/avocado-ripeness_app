@@ -24,6 +24,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 flutter_icons:
   ios: true
@@ -32,6 +33,16 @@ flutter_icons:
   android: true
   adaptive_icon_background: "assets/images/launcher/Avocado_Android_Background.001.png"
   adaptive_icon_foreground: "assets/images/launcher/Avocado_Android.001.png"
+
+flutter_native_splash: 
+  color: "#FFEABE"
+  image: "assets/images/splash/Avocado_splash.png"
+  android_12: 
+    icon_background_color: "#FFEABE"
+    image: "assets/images/splash/Avocado_splash.png"
+  android: true
+  ios: true
+  fullscreen: true
 
 flutter:
   uses-material-design: true
