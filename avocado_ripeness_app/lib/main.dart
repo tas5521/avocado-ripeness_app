@@ -7,6 +7,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/model_service.dart';
 
 // アイコンに合わせたカラーパレット
@@ -127,6 +128,25 @@ class CameraScreen extends HookWidget {
       );
       WidgetsBinding.instance.addObserver(observer);
       return () => WidgetsBinding.instance.removeObserver(observer);
+    }, []);
+
+    // 初回起動時の免責事項ダイアログ表示
+    useEffect(() {
+      Future<void> checkFirstLaunch() async {
+        final prefs = await SharedPreferences.getInstance();
+        final hasShownDisclaimer =
+            prefs.getBool('has_shown_disclaimer') ?? false;
+
+        if (!hasShownDisclaimer) {
+          if (context.mounted) {
+            _showDisclaimerDialog(context);
+            prefs.setBool('has_shown_disclaimer', true);
+          }
+        }
+      }
+
+      checkFirstLaunch();
+      return null;
     }, []);
 
     // モデルサービスの初期化
@@ -422,6 +442,66 @@ class CameraScreen extends HookWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  /// 初回起動時の免責事項ダイアログを表示
+  static void _showDisclaimerDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: _AppColors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: _AppColors.avocadoGreen,
+              size: 24.sp,
+            ),
+            SizedBox(width: 8.w),
+            Text(
+              'ご利用にあたって',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.bold,
+                color: _AppColors.avocadoBrown,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'このアプリは、アボカドの熟度を推定するものです。\n\nアボカドの鮮度や味を保証するものではありません。',
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: _AppColors.avocadoBrown,
+            height: 1.6,
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _AppColors.avocadoGreen,
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+            ),
+            child: Text(
+              '理解しました',
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );
