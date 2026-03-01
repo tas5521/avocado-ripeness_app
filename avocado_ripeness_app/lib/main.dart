@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -191,7 +191,17 @@ class CameraScreen extends HookWidget {
 
       controller
           .initialize()
-          .then((_) {
+          .then((_) async {
+            // 画面の向きをPortraitに固定
+            await SystemChrome.setPreferredOrientations([
+              DeviceOrientation.portraitUp,
+            ]);
+            // カメラの向きもPortraitに固定
+            try {
+              await controller.lockCaptureOrientation();
+            } catch (e) {
+              debugPrint('カメラの向き固定に失敗: $e');
+            }
             cameraController.value = controller;
             isCameraInitialized.value = true;
             debugPrint('カメラの初期化が完了しました');
@@ -661,7 +671,7 @@ class CameraScreen extends HookWidget {
     final screenW = screenSize.width;
     final screenH = screenSize.height;
 
-    // カメラのプレビューサイズ（横向き基準）
+    // カメラのプレビューサイズ（横向き基準なのでPortrait用に入れ替え）
     final camW = controller.value.previewSize!.height;
     final camH = controller.value.previewSize!.width;
 
